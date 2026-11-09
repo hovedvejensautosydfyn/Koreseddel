@@ -1,7 +1,7 @@
 // Gemmer appens egne filer, så appen og kundens køreseddel kan åbnes uden internet.
 // Altid nettet først (så opdateringer kommer med det samme), ellers den gemte udgave.
 // Kald til serveren (script.google.com) gemmes aldrig.
-var CACHE = 'koreseddel-app-v2';
+var CACHE = 'koreseddel-app-v3';
 var FILES = ['./', 'index.html', 'vis.html', 'config.js', 'logo.png', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png'];
 
 self.addEventListener('install', function (e) {

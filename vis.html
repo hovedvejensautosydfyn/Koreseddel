@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://script.google.com https://script.googleusercontent.com; base-uri 'self'; form-action 'none'">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>Køreseddel</title>
@@ -160,9 +161,27 @@
     document.title = 'Køreseddel – prøveskilt ' + d.plate;
   }
 
+  // Gemte køresedler (til visning uden internet) slettes, når linket er udløbet,
+  // så personoplysninger ikke bliver liggende på telefonen. Uden udløbstid: højst 14 dage efter kørslen.
+  function expiry(x) {
+    var d = x && x.data;
+    if (d && d.validUntil > 0) return d.validUntil;
+    return d && d.slip && d.slip.expectedAt > 0 ? d.slip.expectedAt + 14 * 86400000 : 0;
+  }
+  function sweep() {
+    try {
+      Object.keys(localStorage).forEach(function (k) {
+        if (k.indexOf('koreseddel.vis.') !== 0) return;
+        var x = null;
+        try { x = JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { x = null; }
+        if (!x || Date.now() > expiry(x)) localStorage.removeItem(k);
+      });
+    } catch (e) { /* ingen lagring */ }
+  }
   function saved() {
     try { var x = JSON.parse(localStorage.getItem(STORE) || 'null'); return x && x.data && x.data.slip ? x : null; } catch (e) { return null; }
   }
+  sweep();
 
   if (!/^[0-9a-f]{40}$/.test(token)) { fail('Linket er ikke helt. Åbn det igen fra SMS\'en, eller bed forhandleren om et nyt.'); return; }
   if (!API_URL) { fail('Siden er ikke sat op endnu.'); return; }
