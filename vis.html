@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Køreseddel</title>
+<meta name="theme-color" content="#000000">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<script src="config.js"></script>
+<style>
+  :root { --ink: #111114; --muted: #5B5B66; --line: #E4E4E7; --bg: #F4F4F5; --brand: #E3120F; --ok: #15803D; --ok-soft: #DCFCE7; --warn: #92400E; --warn-soft: #FEF3C7; color-scheme: light; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 15.5px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  .top { background: #000; padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px; }
+  .top img { height: 24px; display: block; }
+  main { max-width: 680px; margin: 0 auto; padding: 16px 16px calc(40px + env(safe-area-inset-bottom, 0px)); }
+  .doc { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 18px 16px; }
+  .kicker { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0; }
+  h1 { font-size: 26px; line-height: 1.15; margin: 2px 0 4px; }
+  .plate { display: inline-block; border: 2px solid var(--ink); border-radius: 6px; padding: 2px 10px; font-weight: 800; font-size: 22px; letter-spacing: .06em; margin: 6px 0 4px; }
+  .status { border-radius: 10px; padding: 10px 12px; margin: 12px 0 4px; font-weight: 600; }
+  .status.ok { background: var(--ok-soft); color: var(--ok); }
+  .status.warn { background: var(--warn-soft); color: var(--warn); }
+  h2 { font-size: 12.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 20px 0 6px; padding-bottom: 4px; border-bottom: 2px solid var(--ink); }
+  dl { margin: 0; display: grid; grid-template-columns: minmax(110px, 38%) 1fr; }
+  dt, dd { margin: 0; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  dt { color: var(--muted); padding-right: 10px; }
+  dd { font-weight: 600; overflow-wrap: anywhere; }
+  .terms b { display: block; margin-top: 8px; font-size: 14px; }
+  .terms p { margin: 2px 0 0; font-size: 13.5px; color: #3F3F46; }
+  .sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+  .sig img { display: block; width: 100%; height: 70px; object-fit: contain; object-position: left bottom; }
+  .sig div { border-top: 1px solid var(--ink); font-size: 12.5px; color: var(--muted); padding-top: 3px; }
+  .actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .btn { flex: 1; min-height: 46px; border-radius: 999px; border: 1px solid #D4D4D8; background: #fff; font: inherit; font-weight: 600; cursor: pointer; color: var(--ink); }
+  .note { font-size: 13px; color: var(--muted); margin-top: 14px; }
+  .msg { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 22px 18px; text-align: center; }
+  .spinner { display: inline-block; width: 22px; height: 22px; border: 2px solid var(--muted); border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  [hidden] { display: none !important; }
+  @media (max-width: 420px) { .sigs { grid-template-columns: 1fr; } }
+  @media print {
+    body { background: #fff; font-size: 11pt; }
+    .top, .actions, .note { display: none; }
+    main { padding: 0; max-width: none; }
+    .doc { border: 0; padding: 0; }
+  }
+</style>
+</head>
+<body>
+<header class="top"><img src="logo.png" alt="Hovedvejens Auto Sydfyn"></header>
+<main>
+  <div id="loading" class="msg"><span class="spinner"></span><p>Henter køresedlen …</p></div>
+  <div id="error" class="msg" hidden><h1 style="font-size:22px">Køresedlen kan ikke vises</h1><p id="errorText"></p></div>
+  <article id="doc" class="doc" hidden></article>
+</main>
+<script>
+(function () {
+  'use strict';
+  var API_URL = String(window.KORESEDDEL_API_URL || '');
+  var token = (location.hash || '').replace(/^#/, '').trim().toLowerCase();
+  var $ = function (id) { return document.getElementById(id); };
+  var dateFmt = new Intl.DateTimeFormat('da-DK', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Copenhagen' });
+  var timeFmt = new Intl.DateTimeFormat('da-DK', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Copenhagen' });
+  var numberFmt = new Intl.NumberFormat('da-DK');
+  var STORE = 'koreseddel.vis.' + token;
+
+  function el(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) { if (k === 'text') n.textContent = attrs[k]; else if (k === 'class') n.className = attrs[k]; else n.setAttribute(k, attrs[k]); });
+    (kids || []).forEach(function (c) { if (c) n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return n;
+  }
+  function when(ms) { return dateFmt.format(new Date(ms)) + ' kl. ' + timeFmt.format(new Date(ms)); }
+  function isoDk(iso) { return iso ? iso.slice(8, 10) + '-' + iso.slice(5, 7) + '-' + iso.slice(0, 4) : ''; }
+  function km(n) { return n === null || n === undefined ? '' : numberFmt.format(n) + ' km'; }
+
+  function fail(text) {
+    $('loading').hidden = true; $('doc').hidden = true;
+    $('errorText').textContent = text; $('error').hidden = false;
+  }
+
+  function list(rows) {
+    var dl = el('dl');
+    rows.forEach(function (r) { if (r[1] === '' || r[1] == null) return; dl.appendChild(el('dt', { text: r[0] })); dl.appendChild(el('dd', { text: String(r[1]) })); });
+    return dl;
+  }
+
+  function render(data, offline) {
+    var d = data.slip, sig = data.signatures || {};
+    var doc = $('doc'); doc.textContent = '';
+    var now = Date.now();
+    var status;
+    if (d.returnedAt) status = el('div', { class: 'status ok', text: 'Kørslen er afsluttet ' + when(d.returnedAt) + '.' });
+    else if (now <= d.expectedAt) status = el('div', { class: 'status ok', text: 'Gælder nu. Bilen skal være tilbage senest ' + when(d.expectedAt) + '.' });
+    else status = el('div', { class: 'status warn', text: 'Bilen skulle have været tilbage ' + when(d.expectedAt) + '.' });
+
+    doc.appendChild(el('p', { class: 'kicker', text: 'Køreseddel nr. ' + d.no }));
+    doc.appendChild(el('h1', { text: d.mode === 'staff' ? 'Kørsel med prøveskilt – forhandlerens egen kørsel' : 'Kørsel med prøveskilt' }));
+    doc.appendChild(el('div', { class: 'plate', text: d.plate }));
+    doc.appendChild(status);
+
+    var staff = d.mode === 'staff';
+    doc.appendChild(el('h2', { text: 'Kørslen' }));
+    doc.appendChild(list([['Formål', d.purpose], ['Bemærkning', d.note], ['Ud', when(d.createdAt)], [staff ? 'Forventet tilbage' : 'Senest tilbage', when(d.expectedAt)], ['Retur', d.returnedAt ? when(d.returnedAt) : '']]));
+    doc.appendChild(el('h2', { text: 'Køretøj' }));
+    doc.appendChild(list([['Mærke og model', d.car], ['Stelnummer', d.vin], ['Reg.nr.', d.regNo], ['Km ud', km(d.kmOut)], ['Km ind', d.kmIn != null ? km(d.kmIn) : '']]));
+    doc.appendChild(el('h2', { text: 'Fører' }));
+    doc.appendChild(staff
+      ? list([['Navn', d.driverName], ['Kører som', 'Ansat hos ' + d.firm.name]])
+      : list([['Navn', d.driverName], ['Adresse', d.driverAddress], ['Telefon', d.driverPhone], ['Kørekortnr.', d.licenseNo], ['Kørekort udløber', isoDk(d.licenseExpiry)]]));
+    doc.appendChild(el('h2', { text: 'Forhandler (indehaver af prøveskiltet)' }));
+    doc.appendChild(list([['Firma', d.firm.name], ['Adresse', d.firm.address], ['CVR-nr.', d.firm.cvr], ['Telefon', d.firm.phone], ['Sælger', staff ? '' : d.seller]]));
+
+    if (!staff && d.terms && d.terms.length) {
+      doc.appendChild(el('h2', { text: 'Vilkår, som føreren har accepteret' }));
+      var terms = el('div', { class: 'terms' });
+      d.terms.forEach(function (t) { terms.appendChild(el('b', { text: t.title })); terms.appendChild(el('p', { text: t.text })); });
+      doc.appendChild(terms);
+
+      var sigs = el('div', { class: 'sigs' });
+      [['Fører: ' + d.driverName, sig.customer], ['Sælger: ' + d.seller, sig.seller]].forEach(function (s) {
+        var box = el('div', { class: 'sig' });
+        if (s[1] && /^data:image\/png;base64,/.test(s[1])) box.appendChild(el('img', { src: s[1], alt: 'Underskrift' }));
+        box.appendChild(el('div', { text: s[0] }));
+        sigs.appendChild(box);
+      });
+      doc.appendChild(sigs);
+    }
+
+    var actions = el('div', { class: 'actions' });
+    var print = el('button', { class: 'btn', type: 'button', text: 'Gem som PDF / udskriv' });
+    print.addEventListener('click', function () { window.print(); });
+    actions.appendChild(print);
+    if (d.firm.phone) actions.appendChild(el('a', { class: 'btn', href: 'tel:' + d.firm.phone.replace(/\s/g, ''), style: 'display:flex;align-items:center;justify-content:center;text-decoration:none', text: 'Ring til forhandleren' }));
+    doc.appendChild(actions);
+    doc.appendChild(el('p', { class: 'note', text: offline
+      ? 'Vist uden internet (gemt på telefonen ' + when(offline) + ').'
+      : 'Køresedlen er gemt på telefonen, så den også kan vises uden internet. Linket holder op med at virke nogle dage efter kørslen.' }));
+
+    $('loading').hidden = true; $('error').hidden = true; doc.hidden = false;
+    document.title = 'Køreseddel – prøveskilt ' + d.plate;
+  }
+
+  function saved() {
+    try { var x = JSON.parse(localStorage.getItem(STORE) || 'null'); return x && x.data && x.data.slip ? x : null; } catch (e) { return null; }
+  }
+
+  if (!/^[0-9a-f]{40}$/.test(token)) { fail('Linket er ikke helt. Åbn det igen fra SMS\'en, eller bed forhandleren om et nyt.'); return; }
+  if (!API_URL) { fail('Siden er ikke sat op endnu.'); return; }
+
+  var cached = saved();
+  if (cached) render(cached.data, cached.at);
+
+  fetch(API_URL, {
+    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ fn: 'view', args: [{ token: token }] }), redirect: 'follow', cache: 'no-store', credentials: 'omit'
+  }).then(function (r) { return r.json(); }).then(function (json) {
+    if (json && json.ok && json.data && json.data.slip) {
+      try { localStorage.setItem(STORE, JSON.stringify({ at: Date.now(), data: json.data })); } catch (e) { /* kan ikke gemme */ }
+      render(json.data, 0);
+    } else {
+      if (json && json.code === 'EXPIRED') { try { localStorage.removeItem(STORE); } catch (e) { /* intet */ } }
+      if (!cached || (json && json.code === 'EXPIRED')) fail(String(json && json.error || 'Noget gik galt. Prøv igen om lidt.'));
+    }
+  }, function () {
+    if (!cached) fail('Ingen forbindelse. Tjek internettet, og prøv igen.');
+  });
+})();
+</script>
+</body>
+</html>

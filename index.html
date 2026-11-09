@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Køreseddel</title>
+<meta name="description" content="Digitale køresedler til prøveskilte – Hovedvejens Auto Sydfyn">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Køreseddel">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600&family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<script src="config.js"></script>
+<style>
+  :root {
+    --bg: #0E0E10; --surface: #18181B; --surface-2: #222226; --line: #2A2A2F; --line-strong: #3A3A40;
+    --ink: #F4F4F5; --muted: #A1A1AA; --brand: #FE1C19; --accent: #FF5C59; --accent-fill: #E3120F; --accent-fill-hover: #F2231F;
+    --accent-soft: #3A1514; --ok: #4ADE80; --ok-soft: #10301C; --danger: #FB7185; --danger-soft: #3B1220;
+    --warn-ink: #F5C463; --warn-soft: #33270C; --radius: 12px; --radius-sm: 8px;
+    --f-body: "Ubuntu", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --f-disp: "Teko", "Bahnschrift", "Arial Narrow", sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 16px/1.5 var(--f-body); -webkit-font-smoothing: antialiased; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+
+  .top {
+    background: #000; padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; z-index: 5;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .brand img { height: 24px; width: auto; display: block; }
+  .brand span { font-family: var(--f-disp); font-size: 20px; letter-spacing: .07em; text-transform: uppercase; padding: 3px 0 0 10px; border-left: 1px solid #1F1F23; }
+  .ghost { background: none; border: 0; color: var(--muted); padding: 8px 10px; border-radius: 999px; cursor: pointer; font-size: 14px; }
+  .ghost:hover { color: var(--ink); background: var(--surface-2); }
+
+  main { max-width: 640px; margin: 0 auto; padding: 16px 16px calc(48px + env(safe-area-inset-bottom, 0px)); }
+  h1 { font-family: var(--f-disp); font-size: 32px; line-height: 1; text-transform: uppercase; margin: 8px 0 18px; font-weight: 600; letter-spacing: .02em; }
+  h1::after { content: ""; display: block; width: 38px; height: 3px; border-radius: 2px; background: var(--brand); margin-top: 6px; }
+  h2 { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; margin: 0 0 12px; color: var(--muted); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 16px; margin-bottom: 14px; }
+
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label, .label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 5px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  input[type=text], input[type=tel], input[type=date], input[type=number], input:not([type]), select, textarea {
+    width: 100%; padding: 12px 13px; border-radius: var(--radius-sm); border: 1px solid var(--line-strong);
+    background: var(--bg); outline: none; font-size: 16px; min-height: 48px;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--ink); }
+  input[aria-invalid=true] { border-color: var(--danger); }
+  .help { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+  .upper { text-transform: uppercase; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 50px; padding: 12px 18px;
+    border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface-2); cursor: pointer; font-weight: 500; text-decoration: none; color: var(--ink);
+  }
+  .btn.primary { background: var(--accent-fill); border-color: var(--accent-fill); color: #fff; font-weight: 700; }
+  .btn.primary:hover { background: var(--accent-fill-hover); }
+  .btn.block { width: 100%; }
+  .btn[disabled] { opacity: .5; cursor: default; }
+  .btn.small { min-height: 38px; padding: 7px 14px; font-size: 14px; }
+  .stack { display: grid; gap: 10px; }
+
+  #slipForm[data-mode="staff"] .only-customer, #slipForm:not([data-mode="staff"]) .only-staff { display: none !important; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 4px; gap: 4px; }
+  .seg button { border: 0; background: none; padding: 10px; min-height: 46px; border-radius: 9px; cursor: pointer; color: var(--muted); font-weight: 500; }
+  .seg button[aria-checked="true"] { background: var(--line-strong); color: var(--ink); font-weight: 700; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1px solid var(--line-strong); background: var(--bg); border-radius: 999px; padding: 9px 14px; cursor: pointer; min-height: 42px; }
+  .chip[aria-pressed=true] { background: var(--ink); color: #000; border-color: var(--ink); font-weight: 700; }
+
+  .terms { font-size: 13.5px; color: #D4D4D8; max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; background: var(--bg); }
+  .terms b { display: block; margin-top: 8px; color: var(--ink); }
+  .terms b:first-child { margin-top: 0; }
+  .terms p { margin: 2px 0 0; }
+  .check { display: flex; gap: 12px; align-items: flex-start; margin-top: 12px; font-size: 15px; cursor: pointer; }
+  .check input { width: 24px; height: 24px; flex: none; margin: 1px 0 0; accent-color: var(--accent-fill); }
+
+  .pad-wrap { position: relative; }
+  canvas.pad { display: block; width: 100%; height: 170px; background: #fff; border-radius: var(--radius-sm); touch-action: none; cursor: crosshair; }
+  .pad-line { position: absolute; left: 16px; right: 16px; bottom: 38px; border-top: 1px dashed #A1A1AA; pointer-events: none; }
+  .pad-x { position: absolute; left: 14px; bottom: 40px; color: #71717A; font-size: 18px; pointer-events: none; }
+  .pad-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 13px; color: var(--muted); }
+  .sig-saved { background: #fff; border-radius: var(--radius-sm); padding: 6px; }
+  .sig-saved img { display: block; height: 80px; max-width: 100%; }
+
+  .banner { padding: 12px 14px; border-radius: var(--radius-sm); font-size: 14.5px; margin-bottom: 14px; }
+  .banner.error { background: var(--danger-soft); color: var(--danger); }
+  .banner.warn { background: var(--warn-soft); color: var(--warn-ink); }
+  .banner.ok { background: var(--ok-soft); color: var(--ok); }
+
+  .slip { border-top: 1px solid var(--line); padding: 12px 0; }
+  .slip:first-of-type { border-top: 0; padding-top: 0; }
+  .slip-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+  .slip-title { font-weight: 700; }
+  .slip-meta { font-size: 13.5px; color: var(--muted); }
+  .late { color: var(--warn-ink); font-weight: 500; }
+  .slip-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .return-box { display: flex; gap: 8px; margin-top: 8px; }
+  .return-box input { flex: 1; }
+  .empty { color: var(--muted); font-size: 14.5px; }
+
+  .done-icon { width: 64px; height: 64px; border-radius: 50%; background: var(--ok-soft); color: var(--ok); display: grid; place-items: center; font-size: 34px; margin: 10px auto 6px; }
+  .center { text-align: center; }
+  .code-input { font-size: 28px !important; letter-spacing: .2em; text-align: center; }
+  .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: #000; padding: 11px 18px; border-radius: 999px; font-size: 14.5px; box-shadow: 0 8px 24px rgba(0,0,0,.4); max-width: calc(100% - 32px); z-index: 20; }
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  dialog { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 16px; width: min(560px, calc(100% - 24px)); max-height: calc(100% - 24px); }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  .dlg-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+  .device { font-size: 13.5px; color: var(--muted); border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; }
+  .pair-code { font-size: 36px; font-weight: 700; letter-spacing: .12em; text-align: center; margin: 8px 0; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><img src="logo.png" alt="Hovedvejens Auto Sydfyn"><span>Køreseddel</span></div>
+  <div>
+    <button class="ghost" id="settingsBtn" type="button" hidden>Indstillinger</button>
+  </div>
+</header>
+
+<main>
+  <!-- Parring -->
+  <section id="pairView" hidden>
+    <h1>Godkend telefonen</h1>
+    <div class="card">
+      <p style="margin-top:0">Skriv koden på 8 cifre. Den laves i regnearket "Køresedler" under menuen <b>Køresedler → Ny enhed</b>, eller i appen på en telefon, der allerede er godkendt.</p>
+      <form id="pairForm" class="stack" autocomplete="off">
+        <input id="pairCode" class="code-input" inputmode="numeric" maxlength="9" placeholder="0000 0000" aria-label="Kode">
+        <input id="pairName" placeholder="Navn på telefonen, fx Olivers iPhone" aria-label="Navn på telefonen" maxlength="40">
+        <div id="pairError" class="banner error" hidden></div>
+        <button class="btn primary block" type="submit" id="pairBtn">Godkend</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- Forside -->
+  <section id="homeView" hidden>
+    <div id="homeError" class="banner error" hidden></div>
+    <div id="setupWarn" class="banner warn" hidden></div>
+    <button class="btn primary block" id="newBtn" type="button" style="min-height:58px;font-size:18px;margin:6px 0 16px">+ Ny køreseddel</button>
+    <div class="card">
+      <h2>Ude at køre nu</h2>
+      <div id="activeList"></div>
+    </div>
+    <div class="card">
+      <h2>Seneste afsluttede</h2>
+      <div id="recentList"></div>
+    </div>
+  </section>
+
+  <!-- Ny køreseddel -->
+  <form id="slipForm" autocomplete="off" novalidate hidden>
+    <h1>Ny køreseddel</h1>
+
+    <div class="seg" role="radiogroup" aria-label="Hvem kører?" style="margin-bottom:14px">
+      <button type="button" role="radio" data-mode="customer" aria-checked="true">Kunde prøvekører</button>
+      <button type="button" role="radio" data-mode="staff" aria-checked="false">Vi kører selv</button>
+    </div>
+    <p class="help only-staff" style="margin:-6px 2px 14px">Til syn, værksted, afhentning, udbringning, klargøring m.m. Ingen kunde, ingen underskrift og ingen SMS. Køresedlen ligger på din telefon under "Vis".</p>
+
+    <div class="card">
+      <h2>Bilen</h2>
+      <div class="field">
+        <span class="label">Prøveskilt</span>
+        <div class="chips" id="plateChips"></div>
+      </div>
+      <div class="field">
+        <label for="carPick">Vælg bilen</label>
+        <select id="carPick"></select>
+        <div class="help" id="carPickHelp"></div>
+      </div>
+      <div class="field"><label for="car">Mærke og model</label><input id="car" maxlength="60" placeholder="fx VW Golf 1.5 TSI"></div>
+      <div class="field"><label for="vin">Stelnummer (17 tegn)</label><input id="vin" class="upper" maxlength="20" autocapitalize="characters" spellcheck="false"><div class="help" id="vinHelp"></div></div>
+      <div class="row2">
+        <div class="field"><label for="kmOut">Km-stand nu</label><input id="kmOut" type="text" inputmode="numeric" maxlength="9"></div>
+        <div class="field"><label for="regNo">Reg.nr. (hvis den har et)</label><input id="regNo" class="upper" maxlength="10" autocapitalize="characters"></div>
+      </div>
+    </div>
+
+    <div class="card only-customer">
+      <h2>Føreren</h2>
+      <div class="field"><label for="driverName">Fulde navn</label><input id="driverName" maxlength="80" autocapitalize="words"></div>
+      <div class="field"><label for="driverPhone">Mobilnummer (køresedlen sendes hertil)</label><input id="driverPhone" type="tel" inputmode="tel" maxlength="20"></div>
+      <div class="field"><label for="driverAddress">Adresse</label><input id="driverAddress" maxlength="120" placeholder="Vej og nr., postnr. og by"></div>
+      <div class="row2">
+        <div class="field"><label for="licenseNo">Kørekortnr. (felt 5)</label><input id="licenseNo" class="upper" maxlength="30" inputmode="text" autocapitalize="characters"></div>
+        <div class="field"><label for="licenseExpiry">Udløber (felt 4b)</label><input id="licenseExpiry" type="date"></div>
+      </div>
+      <div class="field">
+        <span class="label">Billede af kørekortet</span>
+        <div id="photoBox" hidden><img id="photoPreview" alt="Billede af kørekortet" style="display:block;max-width:100%;max-height:200px;border-radius:8px;margin-bottom:8px"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <label class="btn small" for="licensePhoto" id="photoBtn">Tag billede</label>
+          <button class="btn small" type="button" id="photoRemove" hidden>Fjern billedet</button>
+        </div>
+        <input type="file" id="licensePhoto" accept="image/*" capture="environment" hidden>
+        <div class="help">Gemmes kun hos jer i Drive. Kunden og politiet ser det ikke via linket.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Kørslen</h2>
+      <div class="field only-staff"><label for="staffName">Hvem kører? (ansat)</label><input id="staffName" maxlength="60" autocapitalize="words"></div>
+      <div class="field"><label for="purpose">Formål</label><select id="purpose"></select></div>
+      <div class="field only-staff"><label for="note">Hvorhen / bemærkning (valgfrit)</label><input id="note" maxlength="100" placeholder="fx Syn hos Applus Svendborg"></div>
+      <div class="field">
+        <span class="label">Bilen skal være tilbage om</span>
+        <div class="chips" id="durationChips"></div>
+        <div class="help" id="returnHelp"></div>
+      </div>
+    </div>
+
+    <div class="card only-customer">
+      <h2>Kunden læser og skriver under</h2>
+      <div class="terms" id="termsBox"></div>
+      <label class="check"><input type="checkbox" id="accepted"> <span>Jeg har læst vilkårene, og mine oplysninger er rigtige.</span></label>
+      <div class="field" style="margin-top:14px">
+        <span class="label">Kundens underskrift</span>
+        <div class="pad-wrap"><canvas class="pad" id="customerPad"></canvas><div class="pad-line"></div><div class="pad-x">✕</div></div>
+        <div class="pad-actions"><span>Skriv med fingeren</span><button type="button" class="ghost" data-clear="customerPad">Ryd</button></div>
+      </div>
+    </div>
+
+    <div class="card only-customer">
+      <h2>Sælger</h2>
+      <div class="field"><label for="sellerName">Sælgers navn</label><input id="sellerName" maxlength="60" autocapitalize="words"></div>
+      <div id="sellerSaved" hidden>
+        <span class="label">Din gemte underskrift</span>
+        <div class="sig-saved"><img id="sellerImg" alt="Sælgers underskrift"></div>
+        <div class="pad-actions"><span>Gemt på denne telefon</span><button type="button" class="ghost" id="sellerRedo">Skriv igen</button></div>
+      </div>
+      <div id="sellerPadBox">
+        <span class="label">Sælgers underskrift</span>
+        <div class="pad-wrap"><canvas class="pad" id="sellerPad"></canvas><div class="pad-line"></div><div class="pad-x">✕</div></div>
+        <div class="pad-actions"><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="rememberSeller" checked style="width:20px;height:20px"> Husk på denne telefon</label><button type="button" class="ghost" data-clear="sellerPad">Ryd</button></div>
+      </div>
+    </div>
+
+    <div id="formError" class="banner error" hidden></div>
+    <div class="stack">
+      <button class="btn primary block" type="submit" id="createBtn">Opret køreseddel</button>
+      <button class="btn block" type="button" id="cancelBtn">Annullér</button>
+    </div>
+  </form>
+
+  <!-- Oprettet: send til kunden -->
+  <section id="doneView" hidden>
+    <div class="done-icon">✓</div>
+    <h1 class="center" style="margin-bottom:6px">Køresedlen er oprettet</h1>
+    <p class="center" id="doneText" style="color:var(--muted);margin-top:0"></p>
+    <div class="card stack">
+      <a class="btn primary block" id="smsBtn" href="#">Send SMS til kunden</a>
+      <button class="btn block" type="button" id="shareBtn" hidden>Send på anden måde …</button>
+      <button class="btn block" type="button" id="copyBtn">Kopiér link</button>
+      <a class="btn block" id="viewBtn" href="#" target="_blank" rel="noopener">Vis køresedlen</a>
+    </div>
+    <p class="help" id="smsHelp" style="text-align:center">SMS-knappen åbner telefonens egen beskedapp med teksten skrevet. Du trykker bare send.</p>
+    <button class="btn block" type="button" id="doneBtn" style="margin-top:8px">Færdig</button>
+  </section>
+
+  <div id="loading" class="center" style="padding:40px 0;color:var(--muted)"><span class="spinner"></span></div>
+</main>
+
+<dialog id="settingsDialog">
+  <form id="settingsForm" method="dialog" novalidate>
+    <h1 style="font-size:26px">Indstillinger</h1>
+    <div class="field"><label for="sFirmName">Firmanavn</label><input id="sFirmName" maxlength="80"></div>
+    <div class="field"><label for="sFirmAddress">Firmaets adresse</label><input id="sFirmAddress" maxlength="120"></div>
+    <div class="row2">
+      <div class="field"><label for="sFirmCvr">CVR-nr.</label><input id="sFirmCvr" inputmode="numeric" maxlength="12"></div>
+      <div class="field"><label for="sFirmPhone">Telefon</label><input id="sFirmPhone" type="tel" maxlength="20"></div>
+    </div>
+    <div class="field"><label for="sPlates">Prøveskilte</label><input id="sPlates" class="upper" placeholder="fx 12345, 12346" maxlength="200"><div class="help">Skriv numrene på jeres faste prøveskilte, adskilt med komma.</div></div>
+    <div class="field"><label for="sDeductible">Selvrisiko ved skade (kr.)</label><input id="sDeductible" inputmode="numeric" maxlength="9"><div class="help">Står i vilkårene, som kunden skriver under på.</div></div>
+    <div class="row2">
+      <div class="field"><label for="sKeepMonths">Slet køresedler efter (måneder)</label><input id="sKeepMonths" inputmode="numeric" maxlength="3"><div class="help">Mindst 3 måneder.</div></div>
+      <div class="field"><label for="sLinkDays">Kundens link virker (dage efter kørslen)</label><input id="sLinkDays" inputmode="numeric" maxlength="2"></div>
+    </div>
+    <div id="settingsError" class="banner error" hidden></div>
+    <div class="dlg-actions">
+      <button class="btn" type="button" id="settingsCancel">Luk</button>
+      <button class="btn primary" type="button" id="settingsSave">Gem</button>
+    </div>
+    <div class="device">
+      <div id="deviceText"></div>
+      <div id="newCodeBox" hidden><div class="pair-code" id="newCode"></div><div class="help center" id="newCodeHelp"></div></div>
+      <div class="dlg-actions" style="justify-content:flex-start">
+        <button class="btn small" type="button" id="newCodeBtn">Godkend en anden telefon</button>
+        <button class="btn small" type="button" id="logoutBtn">Log ud på denne telefon</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var API_URL = String(window.KORESEDDEL_API_URL || '');
+  var TIMEOUT_MS = window.KORESEDDEL_TIMEOUT_MS || 45000;
+  var SETUP_MESSAGE = 'Serveren er ikke sat op rigtigt: webappen skal være delt med "Alle", og adressen skal slutte på /exec.';
+  var $ = function (id) { return document.getElementById(id); };
+  var dateTime = new Intl.DateTimeFormat('da-DK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  var timeOnly = new Intl.DateTimeFormat('da-DK', { hour: '2-digit', minute: '2-digit' });
+  var numberFmt = new Intl.NumberFormat('da-DK');
+
+  // ---------- lager på telefonen ----------
+  var mem = {};
+  function store(k, v) { k = 'koreseddel.' + k; try { localStorage.setItem(k, v); delete mem[k]; } catch (e) { mem[k] = String(v); } }
+  function recall(k) { k = 'koreseddel.' + k; if (Object.prototype.hasOwnProperty.call(mem, k)) return mem[k]; try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function forget(k) { k = 'koreseddel.' + k; delete mem[k]; try { localStorage.removeItem(k); } catch (e) { /* intet */ } }
+
+  var deviceKey = recall('key') || '';
+  var state = null;
+  var current = null;      // den køreseddel, der lige er oprettet
+  var draftId = '';
+  var duration = 60;
+  var plate = '';
+  var busy = false;
+
+  // ---------- server ----------
+  function appError(message, code) { var e = new Error(message); e.code = code || ''; return e; }
+
+  function call(name, arg) {
+    if (!API_URL) return Promise.reject(appError('Appen er ikke sat op endnu: adressen til serveren mangler i config.js.', 'SETUP'));
+    var body = JSON.stringify({ fn: name, args: arg === undefined ? [] : [arg], key: name === 'pair' ? '' : deviceKey });
+    var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS) : 0;
+    return fetch(API_URL, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body,
+      redirect: 'follow', cache: 'no-store', credentials: 'omit', signal: ctrl ? ctrl.signal : undefined
+    }).then(function (res) {
+      if (res.status === 401 || res.status === 403 || res.status === 404) throw appError(SETUP_MESSAGE, 'SETUP');
+      return res.text().then(function (text) { return { res: res, text: text }; });
+    }).then(function (got) {
+      clearTimeout(timer);
+      var json = null;
+      try { json = JSON.parse(got.text); } catch (e) { json = null; }
+      if (!json || typeof json.ok !== 'boolean') {
+        if (/^\s*</.test(got.text) && /ServiceLogin|accounts\.google\.com/i.test(got.text)) throw appError(SETUP_MESSAGE, 'SETUP');
+        throw appError('Serveren svarede ikke som forventet. Prøv igen om lidt.', 'SERVER');
+      }
+      if (json.ok) return json.data;
+      var err = appError(String(json.error || 'Noget gik galt. Prøv igen.'), String(json.code || 'SERVER'));
+      if (err.code === 'AUTH' && name !== 'pair') authLost(err.message);
+      throw err;
+    }, function (err) {
+      clearTimeout(timer);
+      if (err && err.code) throw err;
+      if (err && err.name === 'AbortError') throw appError('Serveren svarer ikke lige nu. Prøv igen om lidt.', 'NET');
+      throw appError('Ingen forbindelse. Tjek internettet og prøv igen.', 'NET');
+    });
+  }
+
+  function newId() {
+    if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+    var b = new Uint8Array(16); crypto.getRandomValues(b);
+    b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+    var h = Array.prototype.map.call(b, function (x) { return (x < 16 ? '0' : '') + x.toString(16); }).join('');
+    return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
+  }
+
+  // ---------- visning ----------
+  var views = ['pairView', 'homeView', 'slipForm', 'doneView', 'loading'];
+  function show(id) {
+    views.forEach(function (v) { $(v).hidden = v !== id; });
+    $('settingsBtn').hidden = !(id === 'homeView');
+    window.scrollTo(0, 0);
+  }
+  function banner(id, text) { var b = $(id); b.textContent = text || ''; b.hidden = !text; }
+  var toastTimer = null;
+  function toast(text) {
+    $('toast').textContent = text; $('toast').hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { $('toast').hidden = true; }, 3500);
+  }
+  function el(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      if (k === 'text') n.textContent = attrs[k]; else if (k === 'class') n.className = attrs[k]; else n.setAttribute(k, attrs[k]);
+    });
+    (kids || []).forEach(function (c) { if (c) n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return n;
+  }
+
+  function authLost(message) {
+    deviceKey = ''; forget('key'); state = null;
+    showPair(message);
+  }
+  function showPair(message) {
+    show('pairView');
+    banner('pairError', message || '');
+    if (!$('pairName').value) $('pairName').value = guessDeviceName();
+  }
+  function guessDeviceName() {
+    var ua = navigator.userAgent || '';
+    if (/iPhone/.test(ua)) return 'iPhone';
+    if (/iPad/.test(ua)) return 'iPad';
+    if (/Android/.test(ua)) return 'Android-telefon';
+    if (/Windows/.test(ua)) return 'Windows-pc';
+    if (/Mac/.test(ua)) return 'Mac';
+    return '';
+  }
+
+  // ---------- link og SMS ----------
+  function customerLink(s) {
+    var base = location.href.replace(/[#?].*$/, '').replace(/[^/]*$/, '');
+    return base + 'vis.html#' + s.token;
+  }
+  function smsText(s) {
+    var first = String(s.driverName || '').split(' ')[0];
+    return 'Hej ' + first + '. Her er din køreseddel fra ' + s.firmName + ' til ' + s.car + ' (prøveskilt ' + s.plate + '). ' +
+      'Vis den, hvis politiet beder om det: ' + customerLink(s);
+  }
+  function smsHref(s) {
+    // "?&body=" virker både på iPhone og Android.
+    return 'sms:' + encodeURIComponent(s.driverPhone).replace(/%2B/g, '+') + '?&body=' + encodeURIComponent(smsText(s));
+  }
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+    return new Promise(function (resolve, reject) {
+      var t = el('textarea'); t.value = text; document.body.appendChild(t); t.select();
+      try { document.execCommand('copy') ? resolve() : reject(); } catch (e) { reject(e); } finally { t.remove(); }
+    });
+  }
+
+  // ---------- forside ----------
+  function applyState(s) {
+    state = s;
+    renderHome();
+  }
+  function renderHome() {
+    var s = state;
+    banner('setupWarn', s.missing && s.missing.length ? 'Før du kan lave køresedler, skal du udfylde i Indstillinger: ' + s.missing.join(', ') + '.' : '');
+    renderList($('activeList'), s.active, true);
+    renderList($('recentList'), s.recent, false);
+  }
+  function renderList(box, list, active) {
+    box.textContent = '';
+    if (!list || !list.length) { box.appendChild(el('p', { class: 'empty', text: active ? 'Ingen biler er ude lige nu.' : 'Ingen endnu.' })); return; }
+    list.forEach(function (s) {
+      var late = active && Date.now() > s.expectedAt;
+      var staff = s.mode === 'staff';
+      var who = staff ? 'Vi kører selv (' + s.driverName + ')' + (s.note ? ' · ' + s.note : '') : s.driverName;
+      var meta = active
+        ? [el('span', { class: late ? 'late' : '', text: (late ? 'Skulle have været tilbage kl. ' : 'Tilbage senest kl. ') + timeOnly.format(new Date(s.expectedAt)) }), ' · ' + who]
+        : [dateTime.format(new Date(s.createdAt)) + ' · ' + who + (s.kmIn != null ? ' · ' + numberFmt.format(s.kmIn - s.kmOut) + ' km' : '')];
+      var item = el('div', { class: 'slip' }, [
+        el('div', { class: 'slip-head' }, [el('span', { class: 'slip-title', text: s.car }), el('span', { class: 'slip-meta', text: 'Skilt ' + s.plate })]),
+        el('div', { class: 'slip-meta' }, meta)
+      ]);
+      var actions = el('div', { class: 'slip-actions' });
+      if (active) {
+        var back = el('button', { class: 'btn small', type: 'button', text: 'Bilen er tilbage' });
+        back.addEventListener('click', function () { openReturn(item, s, back); });
+        actions.appendChild(back);
+        if (!staff) actions.appendChild(el('a', { class: 'btn small', href: smsHref(s), text: 'Send SMS igen' }));
+      }
+      actions.appendChild(el('a', { class: 'btn small', href: customerLink(s), target: '_blank', rel: 'noopener', text: 'Vis' }));
+      if (s.pdfUrl) actions.appendChild(el('a', { class: 'btn small', href: s.pdfUrl, target: '_blank', rel: 'noopener', text: 'PDF' }));
+      item.appendChild(actions);
+      box.appendChild(item);
+    });
+  }
+  function openReturn(item, s, btn) {
+    if (item.querySelector('.return-box')) return;
+    btn.hidden = true;
+    var input = el('input', { type: 'text', inputmode: 'numeric', placeholder: 'Km-stand nu (ud: ' + numberFmt.format(s.kmOut) + ')', 'aria-label': 'Km-stand nu' });
+    var ok = el('button', { class: 'btn small primary', type: 'button', text: 'Gem' });
+    var err = el('div', { class: 'banner error', hidden: '' });
+    var box = el('div', { class: 'return-box' }, [input, ok]);
+    item.appendChild(box); item.appendChild(err);
+    input.focus();
+    ok.addEventListener('click', function () {
+      var km = input.value.replace(/[\s.]/g, '');
+      if (!/^\d+$/.test(km) || Number(km) < s.kmOut) { err.textContent = 'Skriv km-standen nu. Den skal være mindst ' + numberFmt.format(s.kmOut) + '.'; err.hidden = false; return; }
+      ok.disabled = true; ok.textContent = 'Gemmer …';
+      call('returnSlip', { id: s.id, kmIn: Number(km) }).then(function () {
+        toast('Kørslen er afsluttet.');
+        return call('getState').then(applyState);
+      }).catch(function (e) {
+        err.textContent = e.message; err.hidden = false; ok.disabled = false; ok.textContent = 'Gem';
+      });
+    });
+  }
+  function loadHome() {
+    show('loading');
+    return call('getState').then(function (s) { applyState(s); show('homeView'); }, function (e) {
+      if (e.code === 'AUTH') return;
+      show('homeView'); banner('homeError', e.message);
+      $('activeList').textContent = ''; $('recentList').textContent = '';
+    });
+  }
+
+  // ---------- underskriftsfelt ----------
+  function SignaturePad(canvas) {
+    var ctx = canvas.getContext('2d');
+    var drawing = false, last = null, length = 0;
+    function size() {
+      var r = canvas.getBoundingClientRect();
+      if (!r.width) return;
+      var ratio = Math.min(window.devicePixelRatio || 1, 2);
+      var w = Math.round(r.width * ratio), h = Math.round(r.height * ratio);
+      if (canvas.width === w && canvas.height === h) return;
+      canvas.width = w; canvas.height = h;
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 2.6; ctx.strokeStyle = '#0B1F4D';
+      length = 0;
+    }
+    function pos(e) { var r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+    canvas.addEventListener('pointerdown', function (e) {
+      size(); drawing = true; last = pos(e);
+      try { canvas.setPointerCapture(e.pointerId); } catch (x) { /* ældre browser */ }
+      ctx.beginPath(); ctx.arc(last.x, last.y, 1.3, 0, Math.PI * 2); ctx.fillStyle = '#0B1F4D'; ctx.fill();
+      e.preventDefault();
+    });
+    canvas.addEventListener('pointermove', function (e) {
+      if (!drawing) return;
+      var p = pos(e);
+      ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+      length += Math.hypot(p.x - last.x, p.y - last.y);
+      last = p; e.preventDefault();
+    });
+    function end() { drawing = false; }
+    canvas.addEventListener('pointerup', end);
+    canvas.addEventListener('pointercancel', end);
+    this.clear = function () { size(); ctx.clearRect(0, 0, canvas.width, canvas.height); length = 0; };
+    this.isEmpty = function () { return length < 40; };
+    this.resize = size;
+    /** PNG højst 600 px bred, mørk streg på gennemsigtig baggrund. */
+    this.toDataURL = function () {
+      var scale = Math.min(1, 600 / canvas.width);
+      var out = document.createElement('canvas');
+      out.width = Math.round(canvas.width * scale); out.height = Math.round(canvas.height * scale);
+      out.getContext('2d').drawImage(canvas, 0, 0, out.width, out.height);
+      return out.toDataURL('image/png');
+    };
+  }
+  var customerPad = new SignaturePad($('customerPad'));
+  var sellerPad = new SignaturePad($('sellerPad'));
+  document.querySelectorAll('[data-clear]').forEach(function (b) {
+    b.addEventListener('click', function () { (b.getAttribute('data-clear') === 'customerPad' ? customerPad : sellerPad).clear(); });
+  });
+  window.addEventListener('resize', function () { /* størrelsen ændres kun, når feltet er tomt, så en underskrift ikke forsvinder */
+    if (customerPad.isEmpty()) customerPad.resize();
+    if (sellerPad.isEmpty()) sellerPad.resize();
+  });
+
+  function showSellerSaved(on) {
+    var saved = recall('sellerSig');
+    on = on && !!saved;
+    $('sellerSaved').hidden = !on;
+    $('sellerPadBox').hidden = on;
+    if (on) $('sellerImg').src = saved;
+    else setTimeout(function () { sellerPad.clear(); }, 0);
+  }
+  $('sellerRedo').addEventListener('click', function () { showSellerSaved(false); });
+
+  // ---------- formular ----------
+  var FIELDS = ['car', 'vin', 'kmOut', 'regNo', 'driverName', 'driverPhone', 'driverAddress', 'licenseNo', 'licenseExpiry', 'staffName', 'note'];
+
+  function setPlate(p) {
+    plate = p;
+    $('plateChips').querySelectorAll('.chip').forEach(function (c) { c.setAttribute('aria-pressed', String(c.getAttribute('data-plate') === p)); });
+  }
+  // Kunden må højst have bilen alene i 3 timer. Kører en ansat selv, gælder grænsen ikke.
+  var DURATIONS = {
+    customer: [[30, '30 min'], [60, '1 time'], [120, '2 timer'], [150, '2½ timer'], [180, '3 timer']],
+    staff: [[30, '30 min'], [60, '1 time'], [120, '2 timer'], [180, '3 timer'], [300, '5 timer'], [480, '8 timer'], [720, '12 timer']]
+  };
+  var mode = 'customer';
+  function setMode(m) {
+    mode = m === 'staff' ? 'staff' : 'customer';
+    $('slipForm').setAttribute('data-mode', mode);
+    document.querySelectorAll('.seg button').forEach(function (b) { b.setAttribute('aria-checked', String(b.getAttribute('data-mode') === mode)); });
+    var sel = $('purpose'); sel.textContent = '';
+    (mode === 'staff' ? state.staffPurposes : state.purposes).forEach(function (p) { sel.appendChild(el('option', { value: p, text: p })); });
+    var box = $('durationChips'); box.textContent = '';
+    DURATIONS[mode].forEach(function (d) {
+      var c = el('button', { type: 'button', class: 'chip', 'data-min': String(d[0]), text: d[1] });
+      c.addEventListener('click', function () { setDuration(d[0]); });
+      box.appendChild(c);
+    });
+    setDuration(60);
+    $('createBtn').textContent = mode === 'staff' ? 'Opret køreseddel til egen kørsel' : 'Opret køreseddel';
+    banner('formError', '');
+  }
+  document.querySelectorAll('.seg button').forEach(function (b) {
+    b.addEventListener('click', function () { setMode(b.getAttribute('data-mode')); });
+  });
+  function setDuration(min) {
+    duration = min;
+    $('durationChips').querySelectorAll('.chip').forEach(function (c) {
+      c.setAttribute('aria-pressed', String(c.getAttribute('data-min') === String(min)));
+    });
+    updateReturnHelp();
+  }
+  function durationMinutes() { return duration; }
+  function updateReturnHelp() {
+    $('returnHelp').textContent = 'Tilbage senest kl. ' + timeOnly.format(new Date(Date.now() + duration * 60000)) +
+      (mode === 'staff' ? '.' : '. Kunden må højst have bilen alene i 3 timer.');
+  }
+
+  function vinProblem(v) {
+    if (!v) return '';
+    if (/[IOQ]/.test(v)) return 'Stelnumre bruger ikke I, O eller Q. Tjek, om det er 1 eller 0.';
+    if (!/^[A-Z0-9]*$/.test(v)) return 'Kun bogstaver og tal.';
+    if (v.length !== 17) return v.length + ' af 17 tegn.';
+    return '';
+  }
+  $('vin').addEventListener('input', function () {
+    var v = $('vin').value.toUpperCase().replace(/[\s-]/g, '');
+    $('vinHelp').textContent = vinProblem(v) || (v.length === 17 ? '✓ 17 tegn' : '');
+  });
+
+  // ---------- bil fra Bilarkivet ----------
+  var archiveId = '';
+  function fillCarPick() {
+    var sel = $('carPick'); sel.textContent = '';
+    var cars = state.cars || [];
+    sel.appendChild(el('option', { value: '', text: cars.length ? 'Vælg bil fra lageret …' : 'Ingen biler fra Bilarkivet' }));
+    cars.forEach(function (c) {
+      sel.appendChild(el('option', { value: c.id, text: (c.reg ? c.reg + ' – ' : '') + (c.model || 'Uden navn') + (c.year ? ' (' + c.year + ')' : '') }));
+    });
+    sel.appendChild(el('option', { value: 'manual', text: 'Bilen er ikke på listen – skriv selv' }));
+    sel.value = '';
+    archiveId = '';
+    $('carPickHelp').textContent = state.carsError || '';
+    $('kmOut').placeholder = '';
+  }
+  $('carPick').addEventListener('change', function () {
+    var id = $('carPick').value;
+    var car = (state.cars || []).filter(function (c) { return c.id === id; })[0];
+    archiveId = car ? car.id : '';
+    $('kmOut').value = '';
+    if (!car) {
+      ['car', 'vin', 'regNo'].forEach(function (f) { $(f).value = ''; });
+      $('kmOut').placeholder = '';
+      $('carPickHelp').textContent = id === 'manual' ? 'Skriv bilens oplysninger nedenfor.' : (state.carsError || '');
+      $('vin').dispatchEvent(new Event('input'));
+      if (id === 'manual') $('car').focus();
+      return;
+    }
+    $('car').value = car.model + (car.year ? ' (' + car.year + ')' : '');
+    $('regNo').value = car.reg;
+    $('vin').value = car.vin;
+    $('vin').dispatchEvent(new Event('input'));
+    $('kmOut').placeholder = car.kmAtPurchase != null ? 'Ved køb: ' + numberFmt.format(car.kmAtPurchase) : '';
+    var miss = [];
+    if (vinProblem(car.vin) || car.vin.length !== 17) miss.push('stelnummer');
+    $('carPickHelp').textContent = 'Udfyldt fra Bilarkivet. Skriv km-standen, som den står nu.' + (miss.length ? ' Stelnummeret mangler eller er forkert i Bilarkivet – skriv det.' : '');
+    $('kmOut').focus();
+  });
+
+  // ---------- billede af kørekortet ----------
+  var licensePhoto = '';
+  function setPhoto(dataUrl) {
+    licensePhoto = dataUrl || '';
+    $('photoBox').hidden = !licensePhoto;
+    $('photoRemove').hidden = !licensePhoto;
+    $('photoBtn').textContent = licensePhoto ? 'Tag nyt billede' : 'Tag billede';
+    if (licensePhoto) $('photoPreview').src = licensePhoto; else $('photoPreview').removeAttribute('src');
+  }
+  /** Gør billedet mindre (højst 1400 px), så det kan sendes hurtigt også på dårligt net. */
+  function shrinkPhoto(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        var scale = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
+        var c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.naturalWidth * scale)); c.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        var ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        var q = 0.8, out = c.toDataURL('image/jpeg', q);
+        while (out.length > 650000 && q > 0.35) { q -= 0.15; out = c.toDataURL('image/jpeg', q); }
+        if (out.length > 650000) reject(new Error('Billedet er for stort.')); else resolve(out);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Billedet kunne ikke læses.')); };
+      img.src = url;
+    });
+  }
+  $('licensePhoto').addEventListener('change', function () {
+    var f = $('licensePhoto').files && $('licensePhoto').files[0];
+    $('licensePhoto').value = '';
+    if (!f) return;
+    shrinkPhoto(f).then(setPhoto, function (e) { banner('formError', e.message + ' Prøv igen.'); });
+  });
+  $('photoRemove').addEventListener('click', function () { setPhoto(''); });
+
+  function startNew() {
+    if (!state) return;
+    if (state.missing && state.missing.length) { openSettings(); return; }
+    draftId = newId();
+    FIELDS.forEach(function (f) { $(f).value = ''; $(f).removeAttribute('aria-invalid'); });
+    $('vinHelp').textContent = '';
+    $('accepted').checked = false;
+    banner('formError', '');
+    fillCarPick();
+    setPhoto('');
+    // prøveskilte
+    var chips = $('plateChips'); chips.textContent = '';
+    state.settings.plates.forEach(function (p) {
+      var c = el('button', { type: 'button', class: 'chip', 'data-plate': p, text: p });
+      c.addEventListener('click', function () { setPlate(p); });
+      chips.appendChild(c);
+    });
+    setPlate(state.settings.plates.length === 1 ? state.settings.plates[0] : '');
+    setMode('customer');
+    $('note').value = '';
+    $('staffName').value = recall('sellerName') || (state.device && state.device.person !== 'Hovedvejens Auto' ? state.device.person : '');
+    // vilkår
+    var terms = $('termsBox'); terms.textContent = '';
+    state.terms.forEach(function (t) { terms.appendChild(el('b', { text: t.title })); terms.appendChild(el('p', { text: t.text })); });
+    $('sellerName').value = recall('sellerName') || (state.device && state.device.person !== 'Hovedvejens Auto' ? state.device.person : '');
+    show('slipForm');
+    customerPad.clear();
+    showSellerSaved(true);
+  }
+
+  function collect() {
+    var v = {};
+    v.id = draftId;
+    v.plate = plate;
+    v.car = $('car').value.trim();
+    v.vin = $('vin').value.toUpperCase().replace(/[\s-]/g, '');
+    v.kmOut = $('kmOut').value.replace(/[\s.]/g, '');
+    v.regNo = $('regNo').value.trim();
+    v.driverName = $('driverName').value.trim();
+    v.driverPhone = $('driverPhone').value.trim();
+    v.driverAddress = $('driverAddress').value.trim();
+    v.licenseNo = $('licenseNo').value.trim();
+    v.licenseExpiry = $('licenseExpiry').value;
+    v.purpose = $('purpose').value;
+    v.durationMin = durationMinutes();
+    v.accepted = $('accepted').checked;
+    v.sellerName = $('sellerName').value.trim();
+    v.archiveId = archiveId;
+    v.mode = mode;
+    if (mode === 'staff') {
+      v.driverName = $('staffName').value.trim();
+      v.sellerName = v.driverName;
+      v.note = $('note').value.trim();
+      ['driverPhone', 'driverAddress', 'licenseNo', 'licenseExpiry'].forEach(function (k) { v[k] = ''; });
+      v.accepted = false;
+    } else if (licensePhoto) {
+      v.licensePhoto = licensePhoto;
+    }
+    return v;
+  }
+
+  /** Første problem i formularen (samme regler som serveren), og hvilket felt det gælder. */
+  function problem(v) {
+    if (!v.plate) return ['plateChips', 'Vælg prøveskiltet.'];
+    if (!v.car) return ['car', 'Skriv bilens mærke og model.'];
+    if (vinProblem(v.vin) || v.vin.length !== 17) return ['vin', 'Stelnummeret skal være 17 tegn. ' + vinProblem(v.vin)];
+    if (!/^\d{1,7}$/.test(v.kmOut)) return ['kmOut', 'Skriv km-standen.'];
+    if (v.mode === 'staff') {
+      if (v.driverName.length < 2) return ['staffName', 'Skriv navnet på den, der kører.'];
+      return null;
+    }
+    if (v.driverName.length < 3 || v.driverName.indexOf(' ') < 0) return ['driverName', 'Skriv førerens fulde navn.'];
+    var phone = v.driverPhone.replace(/[\s\-().]/g, '');
+    if (!/^(\d{8}|(\+|00)\d{8,15})$/.test(phone)) return ['driverPhone', 'Skriv førerens mobilnummer (8 cifre, eller med landekode).'];
+    if (v.driverAddress.length < 5) return ['driverAddress', 'Skriv førerens adresse.'];
+    if (!/^[A-Za-z0-9 -]{5,30}$/.test(v.licenseNo)) return ['licenseNo', 'Skriv kørekortnummeret (felt 5).'];
+    if (!v.licenseExpiry) return ['licenseExpiry', 'Skriv kørekortets udløbsdato (felt 4b).'];
+    var today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Copenhagen' }).format(new Date());
+    if (v.licenseExpiry < today) return ['licenseExpiry', 'Kørekortet er udløbet. Føreren må ikke køre.'];
+    if (!(v.durationMin > 0 && v.durationMin <= 180)) return ['durationChips', 'Vælg, hvornår bilen skal være tilbage (højst 3 timer).'];
+    if (!v.accepted) return ['accepted', 'Kunden skal sætte flueben ved vilkårene.'];
+    if (customerPad.isEmpty()) return ['customerPad', 'Kunden mangler at skrive under.'];
+    if (!v.sellerName) return ['sellerName', 'Skriv sælgers navn.'];
+    if ($('sellerSaved').hidden && sellerPad.isEmpty()) return ['sellerPad', 'Sælgeren mangler at skrive under.'];
+    return null;
+  }
+
+  $('slipForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (busy) return;
+    var v = collect();
+    FIELDS.forEach(function (f) { $(f).removeAttribute('aria-invalid'); });
+    var p = problem(v);
+    if (p) {
+      banner('formError', p[1]);
+      var target = $(p[0]);
+      if (target) { if (target.tagName === 'INPUT') target.setAttribute('aria-invalid', 'true'); target.scrollIntoView({ block: 'center', behavior: 'smooth' }); if (target.focus && target.tagName === 'INPUT') setTimeout(function () { target.focus(); }, 300); }
+      return;
+    }
+    banner('formError', '');
+    if (v.mode !== 'staff') {
+      v.customerSignature = customerPad.toDataURL();
+      v.sellerSignature = $('sellerSaved').hidden ? sellerPad.toDataURL() : recall('sellerSig');
+    }
+    busy = true;
+    var label = $('createBtn').textContent;
+    $('createBtn').disabled = true; $('createBtn').textContent = 'Opretter … (op til 20 sek.)';
+    call('createSlip', v).then(function (res) {
+      store('sellerName', v.sellerName);
+      if (v.mode !== 'staff' && $('sellerSaved').hidden) {
+        if ($('rememberSeller').checked) store('sellerSig', v.sellerSignature); else forget('sellerSig');
+      }
+      showDone(res.slip);
+      call('getState').then(function (s) { state = s; }, function () { /* opdateres senere */ });
+    }, function (err) {
+      if (err.code === 'AUTH') return;
+      banner('formError', err.message + (err.code === 'NET' ? ' Prøv igen – køresedlen bliver ikke oprettet to gange.' : ''));
+      $('formError').scrollIntoView({ block: 'center' });
+    }).then(function () {
+      busy = false;
+      $('createBtn').disabled = false; $('createBtn').textContent = label;
+    });
+  });
+
+  $('cancelBtn').addEventListener('click', function () {
+    var anything = FIELDS.some(function (f) { return f !== 'staffName' && $(f).value; }) || !customerPad.isEmpty();
+    if (anything && !confirm('Vil du kassere køresedlen? Det, du har skrevet, bliver slettet.')) return;
+    show('homeView'); if (state) renderHome();
+  });
+
+  // ---------- oprettet ----------
+  function showDone(s) {
+    current = s;
+    var staff = s.mode === 'staff';
+    $('doneText').textContent = s.car + ' · skilt ' + s.plate + ' · ' + (staff ? s.driverName + ' kører selv' : s.driverName + ' (' + s.driverPhone + ')');
+    $('smsBtn').hidden = staff;
+    $('smsHelp').hidden = staff;
+    if (!staff) $('smsBtn').href = smsHref(s);
+    $('viewBtn').href = customerLink(s);
+    $('viewBtn').textContent = staff ? 'Vis køresedlen (til politiet)' : 'Vis køresedlen';
+    $('shareBtn').hidden = staff || !navigator.share;
+    show('doneView');
+  }
+  $('shareBtn').addEventListener('click', function () {
+    if (!current || !navigator.share) return;
+    navigator.share({ title: 'Køreseddel', text: smsText(current) }).catch(function () { /* annulleret */ });
+  });
+  $('copyBtn').addEventListener('click', function () {
+    if (!current) return;
+    copyText(customerLink(current)).then(function () { toast('Linket er kopieret.'); }, function () { toast('Kunne ikke kopiere. Brug "Vis køresedlen".'); });
+  });
+  $('doneBtn').addEventListener('click', function () { show('homeView'); if (state) renderHome(); loadHome(); });
+  $('newBtn').addEventListener('click', startNew);
+
+  // ---------- parring ----------
+  $('pairForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var code = $('pairCode').value.replace(/\D/g, '');
+    if (code.length !== 8) { banner('pairError', 'Skriv de 8 cifre fra koden.'); return; }
+    $('pairBtn').disabled = true;
+    call('pair', { code: code, deviceName: $('pairName').value.trim() }).then(function (res) {
+      deviceKey = res.key; store('key', res.key);
+      $('pairCode').value = '';
+      toast('Telefonen er godkendt.');
+      return loadHome();
+    }, function (err) { banner('pairError', err.message); }).then(function () { $('pairBtn').disabled = false; });
+  });
+
+  // ---------- indstillinger ----------
+  function openSettings() {
+    if (!state) return;
+    var s = state.settings;
+    $('sFirmName').value = s.firmName; $('sFirmAddress').value = s.firmAddress; $('sFirmCvr').value = s.firmCvr; $('sFirmPhone').value = s.firmPhone;
+    $('sPlates').value = s.plates.join(', '); $('sDeductible').value = s.deductible || ''; $('sKeepMonths').value = s.keepMonths; $('sLinkDays').value = s.linkDays;
+    banner('settingsError', '');
+    $('deviceText').textContent = state.device ? 'Denne telefon: ' + state.device.name + ' (' + state.device.person + ')' : '';
+    $('newCodeBox').hidden = true;
+    if (typeof $('settingsDialog').showModal === 'function') $('settingsDialog').showModal(); else $('settingsDialog').setAttribute('open', '');
+  }
+  function closeSettings() { if ($('settingsDialog').close) $('settingsDialog').close(); else $('settingsDialog').removeAttribute('open'); }
+  $('settingsBtn').addEventListener('click', openSettings);
+  $('settingsCancel').addEventListener('click', closeSettings);
+  $('settingsSave').addEventListener('click', function () {
+    var btn = $('settingsSave'); btn.disabled = true;
+    call('saveSettings', {
+      firmName: $('sFirmName').value, firmAddress: $('sFirmAddress').value, firmCvr: $('sFirmCvr').value, firmPhone: $('sFirmPhone').value,
+      plates: $('sPlates').value, deductible: $('sDeductible').value, keepMonths: $('sKeepMonths').value, linkDays: $('sLinkDays').value
+    }).then(function (s) { applyState(s); closeSettings(); toast('Indstillingerne er gemt.'); }, function (err) { banner('settingsError', err.message); })
+      .then(function () { btn.disabled = false; });
+  });
+  $('newCodeBtn').addEventListener('click', function () {
+    call('createPairingCode').then(function (r) {
+      $('newCode').textContent = r.display;
+      $('newCodeHelp').textContent = 'Skriv koden i appen på den anden telefon. Gælder til kl. ' + r.expiresText + ' og kun én gang.';
+      $('newCodeBox').hidden = false;
+    }, function (err) { banner('settingsError', err.message); });
+  });
+  $('logoutBtn').addEventListener('click', function () {
+    if (!confirm('Log ud på denne telefon? Du skal bruge en ny kode for at komme ind igen.')) return;
+    call('logoutDevice').catch(function () { /* nøglen glemmes alligevel */ }).then(function () {
+      closeSettings(); forget('sellerSig'); authLost('Du er logget ud.');
+    });
+  });
+
+  // ---------- start ----------
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('sw.js').catch(function () { /* appen virker også uden */ });
+  }
+  if (deviceKey) loadHome(); else showPair('');
+})();
+</script>
+</body>
+</html>
