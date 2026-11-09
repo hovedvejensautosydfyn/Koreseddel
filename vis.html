@@ -131,6 +131,21 @@
       doc.appendChild(sigs);
     }
 
+    if (d.returnedAt) {
+      doc.appendChild(el('h2', { text: 'Kørslen er afsluttet' }));
+      doc.appendChild(list([['Afleveret', when(d.returnedAt)], ['Km ind', km(d.kmIn)], ['Skader', staff ? '' : (d.damage === 'new' ? 'Ny skade: ' + d.damageNote : 'Ingen nye skader')]]));
+      if (!staff) {
+        var rs = el('div', { class: 'sigs' });
+        [[d.customerAbsent ? 'Fører: ' + d.driverName + ' – ikke til stede ved afleveringen' : 'Fører: ' + d.driverName, d.customerAbsent ? '' : sig.returnCustomer], ['Sælger: ' + d.seller, sig.returnSeller]].forEach(function (s) {
+          var box = el('div', { class: 'sig' });
+          if (s[1] && /^data:image\/png;base64,/.test(s[1])) box.appendChild(el('img', { src: s[1], alt: 'Underskrift' }));
+          box.appendChild(el('div', { text: s[0] }));
+          rs.appendChild(box);
+        });
+        doc.appendChild(rs);
+      }
+    }
+
     var actions = el('div', { class: 'actions' });
     var print = el('button', { class: 'btn', type: 'button', text: 'Gem som PDF / udskriv' });
     print.addEventListener('click', function () { window.print(); });

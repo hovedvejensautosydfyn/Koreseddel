@@ -274,6 +274,48 @@
     <button class="btn block" type="button" id="doneBtn" style="margin-top:8px">Færdig</button>
   </section>
 
+  <!-- Bilen er tilbage: afslutning -->
+  <form id="returnView" autocomplete="off" novalidate hidden>
+    <h1>Bilen er tilbage</h1>
+    <p id="returnInfo" style="color:var(--muted);margin-top:-8px"></p>
+    <div class="card">
+      <div class="field"><label for="kmIn">Km-stand nu</label><input id="kmIn" type="text" inputmode="numeric" maxlength="9"><div class="help" id="kmInHelp"></div></div>
+      <div class="field">
+        <span class="label">Skader</span>
+        <div class="seg" role="radiogroup" aria-label="Skader" id="damageSeg">
+          <button type="button" role="radio" data-damage="none" aria-checked="true">Ingen nye skader</button>
+          <button type="button" role="radio" data-damage="new" aria-checked="false">Ny skade</button>
+        </div>
+      </div>
+      <div class="field" id="damageBox" hidden><label for="damageNote">Beskriv skaden</label><input id="damageNote" maxlength="300" placeholder="fx Ridse i højre forskærm"></div>
+      <div class="help" id="returnTime"></div>
+    </div>
+    <div class="card">
+      <h2>Kunden bekræfter afleveringen</h2>
+      <div id="returnCustBox">
+        <div class="pad-wrap"><canvas class="pad" id="returnCustomerPad"></canvas><div class="pad-line"></div><div class="pad-x">✕</div></div>
+        <div class="pad-actions"><span>Kundens underskrift</span><button type="button" class="ghost" data-clear-return="customer">Ryd</button></div>
+      </div>
+      <label class="check"><input type="checkbox" id="customerAbsent"> <span>Kunden er ikke til stede (bilen er afleveret uden kunden)</span></label>
+    </div>
+    <div class="card">
+      <h2>Sælger</h2>
+      <div id="returnSellerSaved" hidden>
+        <div class="sig-saved"><img id="returnSellerImg" alt="Sælgers underskrift"></div>
+        <div class="pad-actions"><span>Din gemte underskrift</span><button type="button" class="ghost" id="returnSellerRedo">Skriv igen</button></div>
+      </div>
+      <div id="returnSellerPadBox">
+        <div class="pad-wrap"><canvas class="pad" id="returnSellerPad"></canvas><div class="pad-line"></div><div class="pad-x">✕</div></div>
+        <div class="pad-actions"><span>Sælgers underskrift</span><button type="button" class="ghost" data-clear-return="seller">Ryd</button></div>
+      </div>
+    </div>
+    <div id="returnError" class="banner error" hidden></div>
+    <div class="stack">
+      <button class="btn primary block" type="submit" id="returnBtn">Afslut kørslen</button>
+      <button class="btn block" type="button" id="returnCancel">Annullér</button>
+    </div>
+  </form>
+
   <div id="loading" class="center" style="padding:40px 0;color:var(--muted)"><span class="spinner"></span></div>
 </main>
 
@@ -379,7 +421,7 @@
   }
 
   // ---------- visning ----------
-  var views = ['pairView', 'homeView', 'slipForm', 'doneView', 'loading'];
+  var views = ['pairView', 'homeView', 'slipForm', 'doneView', 'returnView', 'loading'];
   function show(id) {
     views.forEach(function (v) { $(v).hidden = v !== id; });
     $('settingsBtn').hidden = !(id === 'homeView');
@@ -479,7 +521,91 @@
       box.appendChild(item);
     });
   }
+  // ---------- afslutning af kundens kørsel: km, skader og begges underskrift ----------
+  var returning = null;
+  var returnCustomerPad = null, returnSellerPad = null;
+  var damage = 'none';
+  function setDamage(d) {
+    damage = d === 'new' ? 'new' : 'none';
+    document.querySelectorAll('#damageSeg button').forEach(function (b) { b.setAttribute('aria-checked', String(b.getAttribute('data-damage') === damage)); });
+    $('damageBox').hidden = damage !== 'new';
+    if (damage === 'new') $('damageNote').focus();
+  }
+  document.querySelectorAll('#damageSeg button').forEach(function (b) {
+    b.addEventListener('click', function () { setDamage(b.getAttribute('data-damage')); });
+  });
+  function showReturnSellerSaved(on) {
+    var saved = recall('sellerSig');
+    on = on && !!saved;
+    $('returnSellerSaved').hidden = !on;
+    $('returnSellerPadBox').hidden = on;
+    if (on) $('returnSellerImg').src = saved;
+    else setTimeout(function () { returnSellerPad.clear(); }, 0);
+  }
+  $('returnSellerRedo').addEventListener('click', function () { showReturnSellerSaved(false); });
+  $('customerAbsent').addEventListener('change', function () { $('returnCustBox').hidden = $('customerAbsent').checked; if (!$('customerAbsent').checked) setTimeout(function () { returnCustomerPad.clear(); }, 0); });
+  document.querySelectorAll('[data-clear-return]').forEach(function (b) {
+    b.addEventListener('click', function () { (b.getAttribute('data-clear-return') === 'customer' ? returnCustomerPad : returnSellerPad).clear(); });
+  });
+  function openReturnView(s) {
+    returning = s;
+    if (!returnCustomerPad) { returnCustomerPad = new SignaturePad($('returnCustomerPad')); returnSellerPad = new SignaturePad($('returnSellerPad')); }
+    $('returnInfo').textContent = s.car + ' · skilt ' + s.plate + ' · ' + s.driverName;
+    $('kmIn').value = ''; $('kmIn').removeAttribute('aria-invalid');
+    $('kmInHelp').textContent = 'Km ud: ' + numberFmt.format(s.kmOut);
+    $('damageNote').value = '';
+    setDamage('none');
+    $('customerAbsent').checked = false; $('returnCustBox').hidden = false;
+    banner('returnError', '');
+    var now = Date.now();
+    $('returnTime').textContent = 'Afleveret kl. ' + timeOnly.format(new Date(now)) + ' (tidspunktet gemmes automatisk). ' +
+      (now > s.expectedAt ? 'Bilen skulle have været tilbage kl. ' + timeOnly.format(new Date(s.expectedAt)) + '.' : '');
+    show('returnView');
+    returnCustomerPad.clear();
+    showReturnSellerSaved(true);
+  }
+  $('returnCancel').addEventListener('click', function () { show('homeView'); if (state) renderHome(); });
+  $('returnView').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (busy || !returning) return;
+    var s = returning;
+    var km = $('kmIn').value.replace(/[\s.]/g, '');
+    var problem = null;
+    if (!/^\d{1,7}$/.test(km) || Number(km) < s.kmOut) problem = ['kmIn', 'Skriv km-standen nu. Den skal være mindst ' + numberFmt.format(s.kmOut) + '.'];
+    else if (Number(km) > s.kmOut + 5000) problem = ['kmIn', 'Km-standen er mere end 5.000 km højere end ved udlevering. Tjek tallet.'];
+    else if (damage === 'new' && $('damageNote').value.trim().length < 3) problem = ['damageNote', 'Beskriv den nye skade.'];
+    else if (!$('customerAbsent').checked && returnCustomerPad.isEmpty()) problem = ['returnCustomerPad', 'Kunden mangler at skrive under – eller sæt flueben i "Kunden er ikke til stede".'];
+    else if ($('returnSellerSaved').hidden && returnSellerPad.isEmpty()) problem = ['returnSellerPad', 'Sælgeren mangler at skrive under.'];
+    if (problem) {
+      banner('returnError', problem[1]);
+      var t = $(problem[0]); if (t) { if (t.tagName === 'INPUT') t.setAttribute('aria-invalid', 'true'); t.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+      return;
+    }
+    banner('returnError', '');
+    var req = {
+      id: s.id, kmIn: Number(km), damage: damage, damageNote: $('damageNote').value.trim(),
+      customerAbsent: $('customerAbsent').checked,
+      customerSignature: $('customerAbsent').checked ? '' : returnCustomerPad.toDataURL(),
+      sellerSignature: $('returnSellerSaved').hidden ? returnSellerPad.toDataURL() : recall('sellerSig')
+    };
+    busy = true;
+    $('returnBtn').disabled = true; $('returnBtn').textContent = 'Gemmer … (op til 20 sek.)';
+    call('returnSlip', req).then(function () {
+      toast('Kørslen er afsluttet. Kunden kan se afslutningen via sit link.');
+      returning = null;
+      show('homeView');
+      return call('getState').then(applyState);
+    }, function (err) {
+      if (err.code === 'AUTH') return;
+      banner('returnError', err.message + (err.code === 'NET' ? ' Prøv igen.' : ''));
+    }).then(function () {
+      busy = false;
+      $('returnBtn').disabled = false; $('returnBtn').textContent = 'Afslut kørslen';
+    });
+  });
+
   function openReturn(item, s, btn) {
+    if (s.mode !== 'staff') { openReturnView(s); return; }
     if (item.querySelector('.return-box')) return;
     btn.hidden = true;
     var input = el('input', { type: 'text', inputmode: 'numeric', placeholder: 'Km-stand nu (ud: ' + numberFmt.format(s.kmOut) + ')', 'aria-label': 'Km-stand nu' });
@@ -589,7 +715,7 @@
   function setMode(m) {
     mode = m === 'staff' ? 'staff' : 'customer';
     $('slipForm').setAttribute('data-mode', mode);
-    document.querySelectorAll('.seg button').forEach(function (b) { b.setAttribute('aria-checked', String(b.getAttribute('data-mode') === mode)); });
+    document.querySelectorAll('#slipForm .seg button').forEach(function (b) { b.setAttribute('aria-checked', String(b.getAttribute('data-mode') === mode)); });
     var sel = $('purpose'); sel.textContent = '';
     (mode === 'staff' ? state.staffPurposes : state.purposes).forEach(function (p) { sel.appendChild(el('option', { value: p, text: p })); });
     var box = $('durationChips'); box.textContent = '';
@@ -602,7 +728,7 @@
     $('createBtn').textContent = mode === 'staff' ? 'Opret køreseddel til egen kørsel' : 'Opret køreseddel';
     banner('formError', '');
   }
-  document.querySelectorAll('.seg button').forEach(function (b) {
+  document.querySelectorAll('#slipForm .seg button').forEach(function (b) {
     b.addEventListener('click', function () { setMode(b.getAttribute('data-mode')); });
   });
   function setDuration(min) {
